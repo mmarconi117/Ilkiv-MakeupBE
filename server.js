@@ -5,7 +5,18 @@ require("dotenv").config();
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+const allowedOrigins = [
+  "https://ilkivmakeup.vercel.app", // your frontend
+  "http://localhost:5173"           // local dev
+];
+
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET","POST","PUT","DELETE"],
+  credentials: true,
+}));
 
 // Import email route
 const sendEmailRoute = require("./send-mail");
