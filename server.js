@@ -1,35 +1,32 @@
-// const express = require("express");
-// const cors = require("cors");
-// require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const sendEmailRoute = require("./send-mail");
+require("dotenv").config();
 
-// const app = express();
-// app.use(express.json());
+const app = express();
+app.use(express.json());
 
-// // Allow your frontend domain (production) and localhost for dev
-// const allowedOrigins = [
-//   "https://ilkivmakeup.vercel.app",
-//   "http://localhost:5173"
-// ];
+// Allow frontend origins
+const allowedOrigins = [
+  "https://ilkivmakeup.vercel.app",
+  "http://localhost:5173"
+];
 
-// app.use(cors({
-//   origin: function(origin, callback) {
-//     // allow requests with no origin like curl or postman
-//     if (!origin) return callback(null, true);
-//     if (allowedOrigins.indexOf(origin) === -1) {
-//       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-//       return callback(new Error(msg), false);
-//     }
-//     return callback(null, true);
-//   },
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   credentials: true
-// }));
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Not allowed by CORS"), false);
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  credentials: true
+}));
 
-// // Preflight handling
-// app.options("*", cors());
+// Handle preflight manually
+app.options("*", cors());
 
-// // Routes
-// const sendEmailRoute = require("./send-mail");
-// app.use("/api/send-email", sendEmailRoute);
+// Routes
+app.use("/api/send-email", sendEmailRoute);
 
-// module.exports = app; // if using serverless Vercel function
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1,18 +1,9 @@
-import nodemailer from "nodemailer";
+// send-mail.js
+const express = require("express");
+const nodemailer = require("nodemailer");
+const router = express.Router();
 
-export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader("Access-Control-Allow-Origin", "https://ilkivmakeup.vercel.app");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  // Preflight
-  if (req.method === "OPTIONS") return res.status(200).end();
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
+router.post("/", async (req, res) => {
   const { name, email, message } = req.body;
 
   if (!name || !message) {
@@ -39,7 +30,9 @@ export default async function handler(req, res) {
 
     res.status(200).json({ message: "Email sent successfully" });
   } catch (err) {
-    console.error(err);
+    console.error("Error sending email:", err);
     res.status(500).json({ error: "Error sending email" });
   }
-}
+});
+
+module.exports = router;
