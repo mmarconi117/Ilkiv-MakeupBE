@@ -1,14 +1,15 @@
-// const sql = require('mssql');
+require("dotenv").config();
 
-// const config = {
-//     user: 'SA',
-//     password: 'reallyStrongPwd123',
-//     server: 'localhost',
-//     database: 'IlkivMakeup',
-//     options: {
-//         encrypt: true, // Windows Azure
-//         trustServerCertificate: true
-//     }
-// };
+const config = {
+  user: process.env.DB_USER || "SA",
+  password: process.env.DB_PASSWORD || "reallyStrongPwd123",
+  server: process.env.DB_SERVER || "localhost",
+  database: process.env.DB_NAME || "IlkivMakeup",
+  port: parseInt(process.env.DB_PORT || "1433"),
+  options: {
+    encrypt: false,
+    trustServerCertificate: true
+  }
+};
 
-// module.exports = config;
+module.exports = config;
