@@ -27,9 +27,10 @@ const checkDbEnabled = (req, res, next) => {
 };
 
 app.post("/api/register", checkDbEnabled, async (req, res) => {
-  const { username, password, email } = req.body;
-  if (!username || !password || !email)
-    return res.status(400).send("Username, password, and email are required.");
+  const { firstName, lastName, username, password, email } = req.body;
+
+  if (!firstName || !lastName || !username || !password || !email)
+    return res.status(400).send("First name, last name, username, password, and email are required.");
   if (password.length < 6)
     return res.status(400).send("Password must be at least 6 characters long.");
   if (!/\S+@\S+\.\S+/.test(email))
@@ -44,15 +45,17 @@ app.post("/api/register", checkDbEnabled, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await sql.query`
-      INSERT INTO Users (Username, Password, Email)
-      VALUES (${username}, ${hashedPassword}, ${email})
+      INSERT INTO Users (FirstName, LastName, Username, Password, Email)
+      VALUES (${firstName}, ${lastName}, ${username}, ${hashedPassword}, ${email})
     `;
+
     res.status(201).send("User registered successfully");
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).send("Error creating account");
   }
 });
+
 
 app.post("/api/login", checkDbEnabled, async (req, res) => {
   const { loginId, password } = req.body;
