@@ -1,4 +1,8 @@
 const express = require("express");
+const multer = require("multer");
+const FormData = require("form-data");
+const upload = multer({ storage: multer.memoryStorage() });
+const axios = require("axios");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const sql = require("mssql");
@@ -154,6 +158,34 @@ app.post("/api/reset-password", checkDbEnabled, async (req, res) => {
     res.send("Password has been reset successfully.");
   } catch (error) {
     res.status(500).send("Error resetting password.");
+  }
+});
+
+// AI preview route
+const AI_BASE_URL = process.env.AI_BASE_URL || "http://localhost:8000";
+
+app.post("/api/generate-preview", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Image is required" });
+    }
+
+    const form = new FormData();
+    form.append("image", req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
+    });
+
+    // Send the image to the FastAPI AI service
+    const response = await axios.post(`${AI_BASE_URL}/generate-makeup-preview`, form, {
+      headers: form.getHeaders(),
+    });
+
+    // Forward the AI image URL back to the frontend
+    res.json({ imageUrl: `${AI_BASE_URL}${response.data.imageUrl}` });
+  } catch (err) {
+    console.error("AI Preview Error:", err.message);
+    res.status(500).json({ error: "Failed to generate preview" });
   }
 });
 
