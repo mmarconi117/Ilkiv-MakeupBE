@@ -1,23 +1,17 @@
-// verifyJWT.js
 const jwt = require("jsonwebtoken");
 
-const verifyJWT = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1]; // "Bearer <token>"
-
-  if (!token) {
-    return res.status(401).send("You must be logged in to submit the form.");
-  }
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Access denied. No token provided." });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // user info will be available here
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verified;
     next();
   } catch (err) {
-    return res.status(403).send("Invalid token.");
+    return res.status(403).json({ error: "Invalid or expired token." });
   }
-};
-
-
-
+}
 
 module.exports = verifyJWT;

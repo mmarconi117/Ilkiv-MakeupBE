@@ -1,9 +1,10 @@
 const express = require("express");
 const multer = require("multer");
 const FormData = require("form-data");
+const jwt = require("jsonwebtoken");
+const verifyJWT = require("./verifyJWT");
 const upload = multer({ storage: multer.memoryStorage() });
 const axios = require("axios");
-const bodyParser = require("body-parser");
 const cors = require("cors");
 const sql = require("mssql");
 const bcrypt = require("bcrypt");
@@ -11,7 +12,10 @@ const dbConfig = require("./dbconfig");
 require("dotenv").config();
 
 const app = express();
-app.use(bodyParser.json());
+
+// ✅ Parsers must come BEFORE your routes
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 const sendEmailRoute = require("./api/send-email");
@@ -63,33 +67,47 @@ app.post("/api/register", checkDbEnabled, async (req, res) => {
 
 app.post("/api/login", checkDbEnabled, async (req, res) => {
   const { loginId, password } = req.body;
+
   if (!loginId || !password)
     return res.status(400).send("Username/email and password are required.");
 
   try {
-    const normalizedInput = loginId.toLowerCase();
+    // Normalize the login input (username or email)
+    const normalizedInput = loginId.trim().toLowerCase();
+
+    // Find the user by username OR email
     const result = await sql.query`
       SELECT * FROM Users
       WHERE LOWER(Username) = ${normalizedInput} OR LOWER(Email) = ${normalizedInput}
     `;
+
     const user = result.recordset[0];
     if (!user) return res.status(401).send("User not found");
 
+    // Compare password with hashed password
     const match = await bcrypt.compare(password, user.Password);
-    if (match) {
-      res.send({
-        message: "Login successful",
-        username: user.Username,
-        email: user.Email,
-      });
-    } else {
-      res.status(401).send("Incorrect password");
-    }
+    if (!match) return res.status(401).send("Incorrect password");
+
+    // ✅ Generate JWT token
+    const token = jwt.sign(
+      { id: user.Id, username: user.Username, email: user.Email },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" } // token expires in 2 hours
+    );
+
+    // ✅ Return user data + token
+    res.status(200).json({
+      message: "Login successful",
+      username: user.Username,
+      email: user.Email,
+      token,
+    });
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).send("Error during login");
   }
 });
+
 
 app.post("/api/forgot-password", checkDbEnabled, async (req, res) => {
   const { email } = req.body;
@@ -164,30 +182,46 @@ app.post("/api/reset-password", checkDbEnabled, async (req, res) => {
 // AI preview route
 const AI_BASE_URL = process.env.AI_BASE_URL || "http://localhost:8000";
 
-app.post("/api/generate-preview", upload.single("image"), async (req, res) => {
+app.post("/api/generate-preview", verifyJWT, upload.single("image"), async (req, res) => {
   try {
+    // ✅ Require image file
     if (!req.file) {
       return res.status(400).json({ error: "Image is required" });
     }
 
+    // ✅ Forward image to FastAPI AI service
     const form = new FormData();
     form.append("image", req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
+      filename: req.file.originalname || "upload.jpg",
+      contentType: req.file.mimetype || "image/jpeg",
     });
 
-    // Send the image to the FastAPI AI service
     const response = await axios.post(`${AI_BASE_URL}/generate-makeup-preview`, form, {
       headers: form.getHeaders(),
+      maxBodyLength: Infinity, // prevent file size errors
+      timeout: 30000, // 30s timeout
     });
 
-    // Forward the AI image URL back to the frontend
-    res.json({ imageUrl: `${AI_BASE_URL}${response.data.imageUrl}` });
+    // ✅ Forward AI result to frontend
+    res.status(200).json({
+      success: true,
+      imageUrl: `${AI_BASE_URL}${response.data.imageUrl}`,
+      user: req.user.username, // token-based user info
+    });
   } catch (err) {
     console.error("AI Preview Error:", err.message);
+
+    if (err.code === "ECONNREFUSED") {
+      return res.status(503).json({
+        error: "AI service unavailable. Please try again later.",
+      });
+    }
+
     res.status(500).json({ error: "Failed to generate preview" });
   }
 });
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
