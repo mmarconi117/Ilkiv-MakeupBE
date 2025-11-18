@@ -72,7 +72,6 @@ app.post("/api/login", checkDbEnabled, async (req, res) => {
     return res.status(400).send("Username/email and password are required.");
 
   try {
-    // Normalize the login input (username or email)
     const normalizedInput = loginId.trim().toLowerCase();
 
     // Find the user by username OR email
